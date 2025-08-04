@@ -32,6 +32,8 @@
 #import "SyphonPrivate.h"
 #import "SyphonSubclassing.h"
 
+#define PFMT MTLPixelFormatRGBA32Float
+
 @implementation SyphonMetalServer
 {
     id<MTLTexture> _surfaceTexture;
@@ -53,7 +55,7 @@
     {
         _device = theDevice;
         _surfaceTexture = nil;
-        _renderer = [[SyphonServerRendererMetal alloc] initWithDevice:theDevice colorPixelFormat:MTLPixelFormatBGRA8Unorm];
+        _renderer = [[SyphonServerRendererMetal alloc] initWithDevice:theDevice colorPixelFormat:PFMT];
         if (!_renderer)
         {
             return nil;
@@ -92,7 +94,7 @@
         }
         if(_surfaceTexture == nil)
         {
-            MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+            MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PFMT
                                                                                                   width:size.width
                                                                                                  height:size.height
                                                                                               mipmapped:NO];

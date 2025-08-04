@@ -248,11 +248,15 @@ static void finalizer(void)
         {
             CFRelease(_surface);
         }
+
+        OSType pixelFormat = kCVPixelFormatType_128RGBAFloat;
+
         // init our texture and IOSurface
         NSDictionary<NSString *, id> *surfaceAttributes = @{(NSString*)kIOSurfaceIsGlobal: @(YES),
                                                             (NSString*)kIOSurfaceWidth: @(width),
                                                             (NSString*)kIOSurfaceHeight: @(height),
-                                                            (NSString*)kIOSurfaceBytesPerElement: @(4U)};
+                                                            (NSString*)kIOSurfacePixelFormat: @(pixelFormat),
+                                                            (NSString*)kIOSurfaceBytesPerElement: @(16U)};
 
         _surface =  IOSurfaceCreate((CFDictionaryRef) surfaceAttributes);
 
