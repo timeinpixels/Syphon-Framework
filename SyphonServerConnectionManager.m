@@ -321,6 +321,17 @@
 	});
 }
 
+- (void)publishFrameMetadata:(NSString *)metadata
+{
+	if (metadata) {
+		dispatch_sync(_queue, ^{
+			[_frameClients enumerateKeysAndObjectsUsingBlock:^(NSString *key, SyphonMessageSender *client, BOOL *stop) {
+				[client send:metadata ofType:SyphonMessageTypeFrameMetadata];
+			}];
+		});
+	}
+}
+
 - (void)setSurfaceID:(IOSurfaceID)newID
 {
 	dispatch_sync(_queue, ^{

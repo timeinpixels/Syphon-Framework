@@ -29,10 +29,29 @@
 
 #import "SyphonMetalClient.h"
 #import "SyphonSubclassing.h"
+#import "SyphonServerDirectory.h"
+#import "SyphonClientConnectionManager.h"
+#import "SyphonPrivate.h"
 #import <os/lock.h>
 #import <stdatomic.h>
 
-#define PFMT MTLPixelFormatRGBA32Float
+// Helper function to determine Metal pixel format from IOSurface
+static MTLPixelFormat pixelFormatFromIOSurface(IOSurfaceRef surface) {
+    if (!surface) return MTLPixelFormatBGRA8Unorm;
+    
+    OSType pixelFormat = IOSurfaceGetPixelFormat(surface);
+    switch (pixelFormat) {
+        case kCVPixelFormatType_128RGBAFloat:
+            return MTLPixelFormatRGBA32Float;
+        case kCVPixelFormatType_64RGBAHalf:
+            return MTLPixelFormatRGBA16Float;
+        case kCVPixelFormatType_30RGB:
+            return MTLPixelFormatRGB10A2Unorm;
+        case kCVPixelFormatType_32BGRA:
+        default:
+            return MTLPixelFormatBGRA8Unorm;
+    }
+}
 
 @implementation SyphonMetalClient
 {
@@ -97,7 +116,9 @@
         IOSurfaceRef surface = [self newSurface];
         if (surface != nil)
         {
-            MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PFMT width:IOSurfaceGetWidth(surface) height:IOSurfaceGetHeight(surface) mipmapped:NO];
+            // Detect pixel format from IOSurface for proper format support
+            MTLPixelFormat pixelFormat = pixelFormatFromIOSurface(surface);
+            MTLTextureDescriptor* descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat width:IOSurfaceGetWidth(surface) height:IOSurfaceGetHeight(surface) mipmapped:NO];
             _frame = [_device newTextureWithDescriptor:descriptor iosurface:surface plane:0];
 
             CFRelease(surface);
@@ -111,6 +132,16 @@
     os_unfair_lock_unlock(&_threadLock);
 
     return image;
+}
+
+- (NSString *)currentFrameMetadata
+{
+    // Access the connection manager from the parent class
+    os_unfair_lock_lock(&_threadLock);
+    SyphonClientConnectionManager *connectionManager = [self valueForKey:@"_connectionManager"];
+    NSString *result = connectionManager.currentFrameMetadata;
+    os_unfair_lock_unlock(&_threadLock);
+    return result;
 }
 
 @end

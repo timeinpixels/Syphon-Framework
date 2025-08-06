@@ -94,6 +94,7 @@ static void SyphonClientPrivateRemoveInstance(id instance, NSString *uuid)
     NSHashTable *_frameClients;
     dispatch_queue_t _frameQueue;
     os_unfair_lock _lock;
+    NSString *_currentFrameMetadata;
 }
 
 - (id)initWithServerDescription:(NSDictionary<NSString *, id> *)description
@@ -205,6 +206,11 @@ static void SyphonClientPrivateRemoveInstance(id instance, NSString *uuid)
 					break;
 				case SyphonMessageTypeUpdateSurfaceID:
 					[self setSurfaceID:[(NSNumber *)data unsignedIntValue]];
+					break;
+				case SyphonMessageTypeFrameMetadata:
+					os_unfair_lock_lock(&_lock);
+					_currentFrameMetadata = [(NSString *)data copy];
+					os_unfair_lock_unlock(&_lock);
 					break;
 				case SyphonMessageTypeRetireServer:
 					[self invalidateServerNotHavingLock];
@@ -354,6 +360,15 @@ static void SyphonClientPrivateRemoveInstance(id instance, NSString *uuid)
 		}
 	}
 	result = _frameID;
+	os_unfair_lock_unlock(&_lock);
+	return result;
+}
+
+- (NSString *)currentFrameMetadata
+{
+	NSString *result;
+	os_unfair_lock_lock(&_lock);
+	result = _currentFrameMetadata;
 	os_unfair_lock_unlock(&_lock);
 	return result;
 }

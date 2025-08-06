@@ -32,19 +32,59 @@
 #import "SyphonPrivate.h"
 #import "SyphonSubclassing.h"
 
-#define PFMT MTLPixelFormatRGBA32Float
+// Helper function to map Metal pixel format to IOSurface pixel format
+OSType iosurfacePixelFormatFromMetal(MTLPixelFormat metalFormat) {
+    switch (metalFormat) {
+        case MTLPixelFormatRGBA32Float:
+            return kCVPixelFormatType_128RGBAFloat;
+        case MTLPixelFormatRGBA16Float:
+            return kCVPixelFormatType_64RGBAHalf;
+        case MTLPixelFormatRGB10A2Unorm:
+            return kCVPixelFormatType_30RGB;
+        case MTLPixelFormatBGRA8Unorm:
+        default:
+            return kCVPixelFormatType_32BGRA;
+    }
+}
+
+// Helper function to get bytes per element for a Metal pixel format
+NSUInteger bytesPerElementForMetal(MTLPixelFormat metalFormat) {
+    switch (metalFormat) {
+        case MTLPixelFormatRGBA32Float:
+            return 16; // 4 channels * 4 bytes
+        case MTLPixelFormatRGBA16Float:
+            return 8;  // 4 channels * 2 bytes
+        case MTLPixelFormatRGB10A2Unorm:
+            return 4;  // Packed format
+        case MTLPixelFormatBGRA8Unorm:
+        default:
+            return 4;  // 4 channels * 1 byte
+    }
+}
 
 @implementation SyphonMetalServer
 {
     id<MTLTexture> _surfaceTexture;
     id<MTLDevice> _device;
     SyphonServerRendererMetal *_renderer;
+    MTLPixelFormat _pixelFormat;
+    NSString *_currentFrameMetadata;
+    NSMutableDictionary *_extendedServerDescription;
 }
 
 // These are redeclared from SyphonServerBase.h
 @dynamic name;
-@dynamic serverDescription;
 @dynamic hasClients;
+
+// Override serverDescription to include metadata
+- (NSDictionary<NSString *, id<NSCoding>> *)serverDescription
+{
+    @synchronized (self) {
+        NSMutableDictionary *description = [[super serverDescription] mutableCopy];
+        [description addEntriesFromDictionary:_extendedServerDescription];
+        return [description copy];
+    }
+}
 
 #pragma mark - Lifecycle
 
@@ -55,11 +95,24 @@
     {
         _device = theDevice;
         _surfaceTexture = nil;
-        _renderer = [[SyphonServerRendererMetal alloc] initWithDevice:theDevice colorPixelFormat:PFMT];
+        
+        // Get pixel format from options, default to RGBA32Float for backward compatibility with our implementation
+        NSNumber *pixelFormatNumber = options[@"SyphonMetalPixelFormat"];
+        if (pixelFormatNumber) {
+            _pixelFormat = (MTLPixelFormat)[pixelFormatNumber unsignedIntegerValue];
+        } else {
+            _pixelFormat = MTLPixelFormatRGBA32Float; // Default to 32-bit float
+        }
+        
+        _renderer = [[SyphonServerRendererMetal alloc] initWithDevice:theDevice colorPixelFormat:_pixelFormat];
         if (!_renderer)
         {
             return nil;
         }
+        
+        // Initialize metadata storage
+        _currentFrameMetadata = nil;
+        _extendedServerDescription = [[NSMutableDictionary alloc] init];
     }
     return self;
 }
@@ -94,12 +147,14 @@
         }
         if(_surfaceTexture == nil)
         {
-            MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PFMT
+            MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:_pixelFormat
                                                                                                   width:size.width
                                                                                                  height:size.height
                                                                                               mipmapped:NO];
             descriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
-            IOSurfaceRef surface = [self newSurfaceForWidth:size.width height:size.height options:nil];
+            // Pass pixel format options to IOSurface creation
+            NSDictionary *surfaceOptions = @{@"SyphonMetalPixelFormat": @(_pixelFormat)};
+            IOSurfaceRef surface = [self newSurfaceForWidth:size.width height:size.height options:surfaceOptions];
             if (surface)
             {
                 _surfaceTexture = [_device newTextureWithDescriptor:descriptor iosurface:surface plane:0];
@@ -138,6 +193,7 @@
 
 - (void)publishFrameTexture:(id<MTLTexture>)textureToPublish onCommandBuffer:(id<MTLCommandBuffer>)commandBuffer imageRegion:(NSRect)region flipped:(BOOL)isFlipped
 {
+    
     if(textureToPublish == nil) {
         SYPHONLOG(@"TextureToPublish is nil. Syphon will not publish");
         return;
@@ -175,6 +231,45 @@
     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull commandBuffer) {
         [self publish];
     }];
+}
+
+// Enhanced method that accepts frame metadata
+- (void)publishFrameTexture:(id<MTLTexture>)textureToPublish 
+           onCommandBuffer:(id<MTLCommandBuffer>)commandBuffer 
+               imageRegion:(NSRect)region 
+                   flipped:(BOOL)isFlipped 
+             frameMetadata:(NSString *)frameMetadata
+{
+    // Store the metadata for this frame
+    @synchronized (self) {
+        _currentFrameMetadata = [frameMetadata copy];
+    }
+    
+    // Publish frame metadata to clients via messaging system
+    if (_currentFrameMetadata) {
+        [self publishFrameMetadata:_currentFrameMetadata];
+    }
+    
+    // Call the original method
+    [self publishFrameTexture:textureToPublish onCommandBuffer:commandBuffer imageRegion:region flipped:isFlipped];
+}
+
+// Method to get current frame metadata
+- (NSString *)currentFrameMetadata
+{
+    @synchronized (self) {
+        return _currentFrameMetadata;
+    }
+}
+
+// Method to get extended server description with metadata
+- (NSDictionary *)extendedServerDescription
+{
+    @synchronized (self) {
+        NSMutableDictionary *description = [[super serverDescription] mutableCopy];
+        [description addEntriesFromDictionary:_extendedServerDescription];
+        return [description copy];
+    }
 }
 
 @end

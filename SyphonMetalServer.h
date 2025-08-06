@@ -90,6 +90,35 @@ A dictionary describing the server. Normally you won't need to access this, howe
 - (void)publishFrameTexture:(id<MTLTexture>)textureToPublish onCommandBuffer:(id<MTLCommandBuffer>)commandBuffer imageRegion:(NSRect)region flipped:(BOOL)isFlipped;
 
 /*!
+ Enhanced method that publishes a texture along with frame metadata (timecode, frame number, etc).
+ 
+ @param textureToPublish The `MTLTexture` you wish to publish on the server.
+ @param commandBuffer Your command buffer on which Syphon will write its internal metal commands. You are responsible for comitting this command buffer.
+ @param region The sub-region of the texture to publish.
+ @param isFlipped `YES` if the texture is vertically flipped in Metal coordinates
+ @param frameMetadata An arbitrary NSString containing frame metadata (timecode, frame number, etc.) that will be sent to clients
+*/
+- (void)publishFrameTexture:(id<MTLTexture>)textureToPublish 
+           onCommandBuffer:(id<MTLCommandBuffer>)commandBuffer 
+               imageRegion:(NSRect)region 
+                   flipped:(BOOL)isFlipped 
+             frameMetadata:(nullable NSString *)frameMetadata;
+
+/*!
+ Returns the current frame metadata string (timecode, frame number, etc.) associated with the latest published frame.
+ 
+ @returns The current frame metadata as NSString, or nil if no metadata is available
+*/
+- (nullable NSString *)currentFrameMetadata;
+
+/*!
+ Returns an extended server description dictionary that includes frame metadata and timestamp information.
+ 
+ @returns A dictionary containing standard server description plus frame metadata keys
+*/
+- (NSDictionary<NSString *, id> *)extendedServerDescription;
+
+/*!
  Returns a `MTLTexture` representing the current output from the server, valid on the server's `MTLDevice`. Call this method every time you wish to access the current server frame. This texture has a limited useful lifetime: you should release it as soon as you are finished drawing with it.
   
  @returns A `MTLTexture` representing the current output from the server. YOU ARE RESPONSIBLE FOR RELEASING THIS OBJECT when you are finished with it.

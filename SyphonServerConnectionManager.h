@@ -48,6 +48,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 - (void)stop;
 @property (readonly) BOOL hasClients;
 - (void)publishNewFrame;
+- (void)publishFrameMetadata:(NSString *)metadata;
 - (void)setSurfaceID:(IOSurfaceID)newID;
 - (void)setName:(NSString *)name;
 @end

@@ -92,5 +92,6 @@ enum {
 	SyphonMessageTypeUpdateServerName = 0, /* Accompanying data is the server name as NSString. */
 	SyphonMessageTypeNewFrame = 1, /* No accompanying data. */
 	SyphonMessageTypeUpdateSurfaceID = 2, /* Accompanying data is an unsigned integer value in a NSNumber representing a new IOSurfaceID */
-	SyphonMessageTypeRetireServer = 3 /* No accompanying data. */
+	SyphonMessageTypeRetireServer = 3, /* No accompanying data. */
+	SyphonMessageTypeFrameMetadata = 4 /* Accompanying data is frame metadata as NSString (frame number, timecode, etc.). */
 };

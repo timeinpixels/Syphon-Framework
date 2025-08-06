@@ -53,6 +53,11 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)publish;
 
+/*!
+ Subclasses call this to publish frame metadata (timecode, frame number, etc.) to clients.
+ */
+- (void)publishFrameMetadata:(NSString *)metadata;
+
 @end
 
 @interface SyphonClientBase (SyphonSubclassing)

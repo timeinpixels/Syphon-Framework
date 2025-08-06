@@ -60,4 +60,5 @@
 - (void)removeInfoClient:(id <SyphonInfoReceiving>)client isFrameClient:(BOOL)frameClient;  // paired
 - (IOSurfaceRef)newSurface;
 @property (readonly) NSUInteger frameID;
+@property (readonly, nullable) NSString *currentFrameMetadata;
 @end

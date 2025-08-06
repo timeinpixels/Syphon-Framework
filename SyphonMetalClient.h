@@ -60,6 +60,13 @@ Stops the client from receiving any further frames from the server. Use of this 
 */
 - (void)stop;
 
+/*!
+ Returns the current frame metadata string from the connected server, if available.
+ 
+ @returns Frame metadata as NSString, or nil if no metadata is available
+*/
+- (nullable NSString *)currentFrameMetadata;
+
 @end
 
 NS_ASSUME_NONNULL_END

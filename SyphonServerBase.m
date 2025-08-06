@@ -249,14 +249,42 @@ static void finalizer(void)
             CFRelease(_surface);
         }
 
-        OSType pixelFormat = kCVPixelFormatType_128RGBAFloat;
+        // Get pixel format from options, default to 32-bit RGBA float for our enhanced version
+        OSType pixelFormat = kCVPixelFormatType_128RGBAFloat; // Default
+        NSUInteger bytesPerElement = 16; // Default for RGBA32Float
+        
+        NSNumber *metalPixelFormatNumber = options[@"SyphonMetalPixelFormat"];
+        if (metalPixelFormatNumber) {
+            MTLPixelFormat metalFormat = (MTLPixelFormat)[metalPixelFormatNumber unsignedIntegerValue];
+            switch (metalFormat) {
+                case MTLPixelFormatRGBA32Float:
+                    pixelFormat = kCVPixelFormatType_128RGBAFloat;
+                    bytesPerElement = 16;
+                    break;
+                case MTLPixelFormatRGBA16Float:
+                    pixelFormat = kCVPixelFormatType_64RGBAHalf;
+                    bytesPerElement = 8;
+                    break;
+                case MTLPixelFormatRGB10A2Unorm:
+                    pixelFormat = kCVPixelFormatType_30RGB;
+                    bytesPerElement = 4;
+                    break;
+                case MTLPixelFormatBGRA8Unorm:
+                    pixelFormat = kCVPixelFormatType_32BGRA;
+                    bytesPerElement = 4;
+                    break;
+                default:
+                    // Keep defaults
+                    break;
+            }
+        }
 
         // init our texture and IOSurface
         NSDictionary<NSString *, id> *surfaceAttributes = @{(NSString*)kIOSurfaceIsGlobal: @(YES),
                                                             (NSString*)kIOSurfaceWidth: @(width),
                                                             (NSString*)kIOSurfaceHeight: @(height),
                                                             (NSString*)kIOSurfacePixelFormat: @(pixelFormat),
-                                                            (NSString*)kIOSurfaceBytesPerElement: @(16U)};
+                                                            (NSString*)kIOSurfaceBytesPerElement: @(bytesPerElement)};
 
         _surface =  IOSurfaceCreate((CFDictionaryRef) surfaceAttributes);
 
@@ -279,6 +307,11 @@ static void finalizer(void)
         _pushPending = NO;
     }
     [_connectionManager publishNewFrame];
+}
+
+- (void)publishFrameMetadata:(NSString *)metadata
+{
+    [_connectionManager publishFrameMetadata:metadata];
 }
 #pragma mark Notification Handling for Server Presence
 /*
